@@ -5,26 +5,32 @@
 (def register-conversion {0 :a, 1 :b, 2 :c, 3 :x, 4 :y, 5 :z, 6 :i, 7 :j})
 
 (defn get-register
+  "Return the value of the named register. Integers can be used for standard registers"
   [n]
   (let [n (if-not (keyword? n) (register-conversion n) n)]
     (get @registers n 0)))
 
-(defn set-register
+(defn- set-register
+  "Applies f to the named register, altering its contents. Integers can be used for standard registers"
   [n f]
   (let [n (if-not (keyword? n) (register-conversion n) n)]
     (dosync (alter registers f))))
 
 (defn inc-register
+  "Increment the named register. Integers can be used for standard registers"
   [name]
   (set-register name inc))
 
 (defn dec-register
+  "Decrement the named register. Integers can be used for standard registers"
   [name]
   (set-register name dec))
 
 (defn change-register
+  "Changes the named register to value. Valid values are from 0x0 to 0xFFFF.
+   A value which exceeds this range will be changed to value mod 0x10000"
   [name value]
-  (set-register name #(assoc % name value)))
+  (set-register name #(assoc % name (mod value 0x10000))))
 
 (defn get-memory
   "Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
@@ -40,6 +46,14 @@
   [address value]
   (dosync
    (alter memory assoc address (mod value 0x10000))))
+
+(def follow-register
+  "Fetch the value of the memory location in a register ie. [SP]"
+  (comp get-memory get-register))
+
+(def follow-memory
+  "Fetch the value of the memory location which is stored in another memory location"
+  (comp get-memory get-memory))
 
 (defn- mask-and-shift
   "Generates a function which applies a bit mask to a word and then
