@@ -1,7 +1,8 @@
 (ns cljDCPU.core)
 
 (def memory (ref {}))
-(def register-conversion {0 :a, 1 :b, 2 :c, 3 :x, 4 :y, 5 :z, 6 :i, 7 :j, 0x1B :sp, 0x1C :pc, 0x1D :o})
+(def register-conversion {0 :a, 1 :b, 2 :c, 3 :x, 4 :y, 5 :z, 6 :i, 7 :j, 0x1B :sp, 0x1C :pc, 0x1D :o
+                          0x18 :pop, 0x19 :peek, 0x1a :push})
 
 (defn get-memory
   "Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
@@ -9,7 +10,12 @@
    No check is done to verify the provided address is within the range.
    Assume the default value of memory is 0x0"
   [address]
-  (get @memory address 0))
+  (case address
+    :pop (let [v (follow-memory :sp)]
+           (inc-memory :sp)
+           v)
+    :peek (follow-memory :sp)
+    (get @memory address 0)))
 
 (defn set-memory
   "Set the memory address with value. Valid addresses are 0x0 to 0x10000.
@@ -21,7 +27,11 @@
 
 (defn change-memory
   [address value]
-  (set-memory address #(assoc % address (bit-and 0xFFFF value))))
+  (let [address (if (not= address :push)
+                  address
+                  (do (dec-memory :sp)
+                      (get-memory :sp)))]
+    (set-memory address #(assoc % address (bit-and 0xFFFF value)))))
 
 (defn inc-memory
   [address]
@@ -64,8 +74,10 @@
 
 (defmulti execute get-o)
 (defmethod execute 0x0 [word]
-  ;; This is the special case
-  )
+  (if (= 1 (get-b word))
+    (let [[a b out] (process word)]
+      (change-memory :push (bit-and 0xFFFF (inc (get-memory :pc))))
+      (change-memort :pc a))))
 (defmethod execute 0x1 [word]
   ;; SET a to b
   (let [[a b out] (process word)]
