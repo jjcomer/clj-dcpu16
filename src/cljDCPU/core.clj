@@ -1,22 +1,30 @@
 (ns cljDCPU.core)
 
 (def memory (ref {}))
-(def registers (ref [0 0 0 0 0 0 0 0]))
-(def specials (ref {:o 0 :pc 0 :sp 0}))
+(def registers (ref {}))
+(def register-conversion {0 :a, 1 :b, 2 :c, 3 :x, 4 :y, 5 :z, 6 :i, 7 :j})
 
-(defmulti get-register type)
-(defmethod get-register java.lang.Integer [n]
-  (get-in @registers [n] 0))
-(defmethod get-register clojure.lang.Keyword [k]
-  (get @specials k 0))
+(defn get-register
+  [n]
+  (let [n (if-not (keyword? n) (register-conversion n) n)]
+    (get @registers n 0)))
 
-(defmulti set-register #(type (first %)))
-(defmethod set-register java.lang.Integer [n v]
-  (dosync
-   (alter registers assoc-in [n] v)))
-(defmethod set-register clojure.lang.Keyword [k v]
-  (dosync
-   (alter specials assoc k v)))
+(defn set-register
+  [n f]
+  (let [n (if-not (keyword? n) (register-conversion n) n)]
+    (dosync (alter registers f))))
+
+(defn inc-register
+  [name]
+  (set-register name inc))
+
+(defn dec-register
+  [name]
+  (set-register name dec))
+
+(defn change-register
+  [name value]
+  (set-register name #(assoc % name value)))
 
 (defn get-memory
   "Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
