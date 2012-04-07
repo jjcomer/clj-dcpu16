@@ -41,7 +41,7 @@
 
 (defn change-memory
   [address value]
-  (let [address (if (not= address :push)
+  (let [address (if-not (= address :push)
                   address
                   (do (dec-memory :sp)
                       (get-memory :sp)))]
@@ -96,7 +96,7 @@
 (defmethod execute 0x3 [word]
   ;; SUB a from b
   (let [[a b out] (process word)]
-    (if (< 0 (- a b))
+    (if (pos? (- a b))
       (change-memory :o 0xFFFF)
       (change-memory :o 0))
     (change-memory out (bit-and 0xFFFF (- a b)))
@@ -116,7 +116,7 @@
 (defmethod execute 0x6 [word]
   ;; MOD a = a % b
   (let [[a b out] (process word)]
-    (if (= 0 b)
+    (if (zero? b)
       (change-memory out 0)
       (change-memory out (bit-and 0xFFFF (mod a b))))
     (inc-memory :pc)))
