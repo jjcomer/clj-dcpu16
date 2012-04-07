@@ -26,7 +26,7 @@
   "Set the memory address with value. Valid addresses are 0x0 to 0x10000.
    As each word is 16 bits, the max value is 0xFFFF. If the provided value
    is greater than 0xFFFF the value saved will be truncated"
-  [address f]
+  [f]
   (dosync
    (alter memory f)))
 
@@ -36,15 +36,15 @@
                   address
                   (do (dec-memory :sp)
                       (get-memory :sp)))]
-    (set-memory address #(assoc % address (bit-and 0xFFFF value)))))
+    (set-memory #(assoc % address (bit-and 0xFFFF value)))))
 
 (defn inc-memory
   [address]
-  (set-memory address inc))
+  (set-memory inc))
 
 (defn dec-memory
   [address]
-  (set-memory address dec))
+  (set-memory dec))
 
 (def follow-memory
   "Fetch the value of the memory location which is stored in another memory location"
@@ -182,7 +182,7 @@
 (defn run!
   "Start execution at 0x0000 unless specified"
   ([pc]
-     (set-memory :pc pc)
+     (set-memory pc)
      (run!))
   ([]
      (while true
