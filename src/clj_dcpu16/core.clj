@@ -1,7 +1,8 @@
 (ns clj-dcpu16.core)
 
 (def memory (ref {}))
-(def register-conversion {0 :a, 1 :b, 2 :c, 3 :x, 4 :y, 5 :z, 6 :i, 7 :j, 0x1B :sp, 0x1C :pc, 0x1D :o
+(def register-conversion {0 :a, 1 :b, 2 :c, 3 :x, 4 :y, 5 :z,
+                          6 :i, 7 :j, 0x1B :sp, 0x1C :pc, 0x1D :o,
                           0x18 :pop, 0x19 :peek, 0x1a :push})
 
 (declare follow-memory)
