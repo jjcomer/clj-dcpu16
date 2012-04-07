@@ -4,6 +4,10 @@
 (def register-conversion {0 :a, 1 :b, 2 :c, 3 :x, 4 :y, 5 :z, 6 :i, 7 :j, 0x1B :sp, 0x1C :pc, 0x1D :o
                           0x18 :pop, 0x19 :peek, 0x1a :push})
 
+(declare follow-memory)
+(declare inc-memory)
+(declare dec-memory)
+
 (defn get-memory
   "Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
    This function will also fetch registers using keynames
@@ -77,7 +81,7 @@
   (if (= 1 (get-b word))
     (let [[a b out] (process word)]
       (change-memory :push (bit-and 0xFFFF (inc (get-memory :pc))))
-      (change-memort :pc a))))
+      (change-memory :pc a))))
 (defmethod execute 0x1 [word]
   ;; SET a to b
   (let [[a b out] (process word)]
@@ -177,11 +181,11 @@
 (defn run!
   "Start execution at 0x0000 unless specified"
   ([pc]
-     (set-register :pc pc)
+     (set-memory :pc pc)
      (run!))
   ([]
      (while true
-       (execute (follow-register :pc)))))
+       (execute (follow-memory :pc)))))
 
 (defn -main
   "I don't do a whole lot."
