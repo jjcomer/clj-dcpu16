@@ -5,9 +5,26 @@
                           6 :i, 7 :j, 0x1B :sp, 0x1C :pc, 0x1D :o,
                           0x18 :pop, 0x19 :peek, 0x1a :push})
 
-(declare follow-memory)
-(declare inc-memory)
-(declare dec-memory)
+(defn set-memory
+  "Set the memory address with value. Valid addresses are 0x0 to 0x10000.
+   As each word is 16 bits, the max value is 0xFFFF. If the provided value
+   is greater than 0xFFFF the value saved will be truncated"
+  [f]
+  (dosync
+   (alter memory f)))
+
+(defn inc-memory
+  [address]
+  (set-memory inc))
+
+(defn dec-memory
+  [address]
+  (set-memory dec))
+
+(declare get-memory)
+(def follow-memory
+  "Fetch the value of the memory location which is stored in another memory location"
+  (comp get-memory get-memory))
 
 (defn get-memory
   "Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
@@ -22,14 +39,6 @@
     :peek (follow-memory :sp)
     (get @memory address 0)))
 
-(defn set-memory
-  "Set the memory address with value. Valid addresses are 0x0 to 0x10000.
-   As each word is 16 bits, the max value is 0xFFFF. If the provided value
-   is greater than 0xFFFF the value saved will be truncated"
-  [f]
-  (dosync
-   (alter memory f)))
-
 (defn change-memory
   [address value]
   (let [address (if (not= address :push)
@@ -37,18 +46,6 @@
                   (do (dec-memory :sp)
                       (get-memory :sp)))]
     (set-memory #(assoc % address (bit-and 0xFFFF value)))))
-
-(defn inc-memory
-  [address]
-  (set-memory inc))
-
-(defn dec-memory
-  [address]
-  (set-memory dec))
-
-(def follow-memory
-  "Fetch the value of the memory location which is stored in another memory location"
-  (comp get-memory get-memory))
 
 (defn- mask-and-shift
   "Generates a function which applies a bit mask to a word and then
