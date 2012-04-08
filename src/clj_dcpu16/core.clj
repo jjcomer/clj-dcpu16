@@ -69,10 +69,21 @@
   "retrieves the b parameter from the word"
   (mask-and-shift 0xFC00 10))
 
+(defn- between
+  "Determine if n is x <= n <= y"
+  [n x y]
+  (and (<= x n) (>= y n)))
+
 (defn process
   [word])
 
-(defn op-size [pc])
+(defn op-size
+  "Given a word, calculate how many words the
+   next instruction will consume and return the jump distance"
+  [pc]
+  (let [params [(get-a pc) (get-b pc)]]
+    (apply + 1 (map #(if (or (between % 0x10 0x17)
+                             (between % 0x1e 0x1f)) 1 0) params))))
 
 (defmulti execute get-o)
 (defmethod execute 0x0 [word]
@@ -153,33 +164,33 @@
         pc (get-memory :pc)]
     (if (= a b)
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (inc pc)))))))
+      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
 (defmethod execute 0xd [word]
   ;; IFN execute next instruction iff a!=b
   (let [[a b out] (process word)
         pc (get-memory :pc)]
     (if (not= a b)
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (inc pc)))))))
+      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
 (defmethod execute 0xe [word]
   ;; IFG execute next instruction iff a>b
   (let [[a b out] (process word)
         pc (get-memory :pc)]
     (if (> a b)
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (inc pc)))))))
+      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
 (defmethod execute 0xf [word]
   ;; IFB execute next instruction iff (a&b)!= 0
   (let [[a b out] (process word)
         pc (get-memory :pc)]
     (if (not= 0 (bit-and a b))
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (inc pc)))))))
+      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
 
 (defn run!
   "Start execution at 0x0000 unless specified"
   ([pc]
-     (set-memory pc)
+     (change-memory :pc pc)
      (run!))
   ([]
      (while true
