@@ -1,6 +1,6 @@
-(ns cljDCPU.core-test
+(ns clj-dcpu16.core-test
   (:use clojure.test
-        cljDCPU.core))
+        clj-dcpu16.core))
 
 (deftest word-parsing
   (testing "Word Parsing"
