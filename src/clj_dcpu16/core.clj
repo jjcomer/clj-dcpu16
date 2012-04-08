@@ -28,7 +28,7 @@
 
 (defn get-memory
   "Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
-   This function will also fetch registers using keynames
+   This function will also fetch registers using keywords
    No check is done to verify the provided address is within the range.
    Assume the default value of memory is 0x0"
   [address]
@@ -74,8 +74,52 @@
   [n x y]
   (and (<= x n) (>= y n)))
 
+(defn- get-address-and-value
+  [param]
+  (cond
+   ;;register
+   (between param 0x00 0x07) (let [r (register-conversion param)]
+                               [(get-memory r) r])
+   ;;[register]
+   (between param 0x08 0x0f) (let [r (register-conversion (- param 0x08))
+                                   a (get-memory r)]
+                               [(get-memory a) a])
+   ;;[register + next word]
+   (between param 0x10 0x17) (let [r (register-conversion (- param 0x10))
+                                   a (get-memory (inc (get-memory :pc)))
+                                   a (+ (get-memory r) a)]
+                               (inc-memory :pc)
+                               [(get-memory a) a])
+   ;;POP / [SP++]
+   (= param 0x18) [(get-memory :pop) (get-memory :sp)]
+   ;;PEEK / [SP]
+   (= param 0x19) [(follow-memory :sp) (get-memory :sp)]
+   ;;PUSH / [--SP]
+   (= param 0x1A) [(follow-memory :sp) :push]
+   ;;SP
+   (= param 0x1B) [(get-memory :sp) :sp]
+   ;;PC
+   (= param 0x1C) [(get-memory :pc) :pc]
+   ;;O
+   (= param 0x1D) [(get-memory :o) :o]
+   ;;[next word]
+   (= param 0x1E) (let [a (get-memory (inc (get-memory :pc)))]
+                    (inc-memory :pc)
+                    [(get-memory a) a])
+   ;;next word (literal)
+   (= param 0x1F) (let [a (get-memory (inc (get-memory :pc)))]
+                    (inc-memory :pc)
+                    [a (get-memory :pc)])
+   ;;literal value 0x00-0x1F
+   (between param 0x20 0x3F) [(- param 0x20) :nil]))
+
 (defn process
-  [word])
+  "Given a word, fetch the values for a, b, and the location to save the result.
+   Returned as [a b out]"
+  [word]
+  (let [[a out] (get-address-and-value (get-a word))
+        [b _] (get-address-and-value (get-b word))]
+    [a b out]))
 
 (defn op-size
   "Given a word, calculate how many words the
@@ -195,8 +239,3 @@
   ([]
      (while true
        (execute (follow-memory :pc)))))
-
-(defn -main
-  "I don't do a whole lot."
-  [& args]
-  (println "Hello, World!"))
