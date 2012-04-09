@@ -150,6 +150,5 @@
     (clear-memory)
     (apply place-instruction 0 test-prog)
     (while (not= 0x001a (get-memory :pc))
-      (println (format "%x followed to %x" (get-memory :pc) (follow-memory :pc)))
       (execute (follow-memory :pc)))
     (is (= 0x40 (get-memory :x)))))
