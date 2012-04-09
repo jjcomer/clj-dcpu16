@@ -13,18 +13,14 @@
   (dosync
    (alter memory f)))
 
+(declare change-memory get-memory follow-memory)
 (defn inc-memory
   [address]
-  (set-memory inc))
+  (change-memory address (inc (get-memory address))))
 
 (defn dec-memory
   [address]
-  (set-memory dec))
-
-(declare get-memory)
-(def follow-memory
-  "Fetch the value of the memory location which is stored in another memory location"
-  (comp get-memory get-memory))
+  (change-memory address (dec (get-memory address))))
 
 (defn get-memory
   "Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
@@ -38,6 +34,10 @@
            v)
     :peek (follow-memory :sp)
     (get @memory address 0)))
+
+(def follow-memory
+  "Fetch the value of the memory location which is stored in another memory location"
+  (comp get-memory get-memory))
 
 (defn change-memory
   [address value]
@@ -74,7 +74,7 @@
   [n x y]
   (and (<= x n) (>= y n)))
 
-(defn- get-address-and-value
+(defn get-address-and-value
   [param]
   (cond
    ;;register
