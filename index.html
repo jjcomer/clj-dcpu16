@@ -3041,13 +3041,13 @@ net.brehaut.ClojureTools = (function (SH) {
   [f]
   (dosync
    (alter memory f)))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(declare change-memory get-memory follow-memory)
-(defn inc-memory
+</td><td class="codes"><pre class="brush: clojure">(declare change-memory get-memory follow-memory)</pre></td></tr><tr><td class="docs"><p>Increment the value at address</p>
+</td><td class="codes"><pre class="brush: clojure">(defn inc-memory
   [address]
-  (change-memory address (inc (get-memory address))))</pre></td></tr><tr><td class="docs">
+  (change-memory address (inc (get-memory address))))</pre></td></tr><tr><td class="docs"><p>Decrement the value at address</p>
 </td><td class="codes"><pre class="brush: clojure">(defn dec-memory
   [address]
-  (change-memory address (dec (get-memory address))))</pre></td></tr><tr><td class="docs"><p>Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
+  (change-memory address (dec (get-memory address))))</pre></td></tr><tr><td class="docs"><p>Fetch the provided memory address. Valid addresses are 0x0 to 0xFFFF.
    This function will also fetch registers using keywords
    No check is done to verify the provided address is within the range.
    Assume the default value of memory is 0x0</p>
@@ -3060,7 +3060,8 @@ net.brehaut.ClojureTools = (function (SH) {
     :peek (follow-memory :sp)
     (get @memory address 0)))</pre></td></tr><tr><td class="docs"><p>Fetch the value of the memory location which is stored in another memory location</p>
 </td><td class="codes"><pre class="brush: clojure">(def follow-memory
-  (comp get-memory get-memory))</pre></td></tr><tr><td class="docs">
+  (comp get-memory get-memory))</pre></td></tr><tr><td class="docs"><p>Change the address to value. Valid addresses are 0x0 to 0xFFFF.
+   Registers can be changed using keywords.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn change-memory
   [address value]
   (let [address (if-not (= address :push)
@@ -3084,7 +3085,8 @@ net.brehaut.ClojureTools = (function (SH) {
   (mask-and-shift 0xFC00 10))</pre></td></tr><tr><td class="docs"><p>Determine if n is x &lt;= n &lt;= y</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- between
   [n x y]
-  (and (&lt;= x n) (&gt;= y n)))</pre></td></tr><tr><td class="docs">
+  (and (&lt;= x n) (&gt;= y n)))</pre></td></tr><tr><td class="docs"><p>Given a parameter to an op code, determine the value to use in the calculation and
+   the address to use when writing</p>
 </td><td class="codes"><pre class="brush: clojure">(defn get-address-and-value
   [param]
   (cond
@@ -3135,7 +3137,7 @@ net.brehaut.ClojureTools = (function (SH) {
   (let [params [(get-a pc) (get-b pc)]]
     (apply + 1 (map #(if (or (between % 0x10 0x17)
                              (between % 0x1e 0x1f)) 1 0) params))))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defmulti execute get-o)</pre></td></tr><tr><td class="docs"><p>Special OP Codes <strong>currently only JMP</strong></p>
+</td><td class="codes"><pre class="brush: clojure">(defmulti execute get-o)</pre></td></tr><tr><td class="docs"><p>Special OP Codes <em>currently only JMP</em></p>
 </td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x0 [word]
   (if (= 1 (get-a word))
     (let [[a b out] (process word)]
