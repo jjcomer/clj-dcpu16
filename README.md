@@ -9,9 +9,15 @@ This implementation makes no attempt to compete in the "least number
 of lines" competition that other implementations seem to be aiming
 for. Instead the goal is to be as clear as possible.
 
+Future plans include:
+
+* A Debugger (maybe graphical and cli)
+* An Assembler
+* A Dis-assembler
+
 ## Usage
 
-FIXME
+Fill the memory map with some data and use (run!)
 
 ## License
 
