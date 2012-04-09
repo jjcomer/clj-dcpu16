@@ -83,6 +83,27 @@
         (is (= 0x1C (get-a word)))
         (is (= 0x18 (get-b word)))))))
 
+(deftest processing-instructions
+  (testing "Instruction Processing: "
+    (testing "Register accessing"
+      (clear-memory)
+      (force-memory :a 0x3333)
+      (is (= [0x3333 :a] (get-address-and-value 0x0)))
+      (force-memory :j 0x1111)
+      (is (= [0x1111 :j] (get-address-and-value 0x7))))
+    (testing "Register De-reference"
+      (clear-memory)
+      (force-memory :c 0x1234)
+      (force-memory 0x1234 0x1111)
+      (is (= [0x1111 0x1234] (get-address-and-value 0xA))))
+    (testing "Register + Next Word De-reference"
+      (clear-memory)
+      (force-memory :c 0x1)
+      (force-memory 0x1 0x1)
+      (force-memory 0x2 0x1234)
+      (is (= [0x1234 0x2] (get-address-and-value 0x12))))
+    (testing )))
+
 (deftest instruction-length
   (testing "Instruction Length"
     (testing "Word 0x7DE1"
