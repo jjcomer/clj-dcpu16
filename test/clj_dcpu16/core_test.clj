@@ -10,10 +10,11 @@
 
 (defn- place-instruction
   [address & inst]
-  (if (empty? inst)
-    nil
-    (do (force-memory address (first inst))
-        (place-instruction (inc address) (rest inst)))))
+  (loop [a address i inst]
+    (if (empty? i)
+      nil
+      (do (force-memory a (first i))
+          (recur (inc a) (rest i))))))
 
 (deftest memory-access
   (testing "Get memory: "
@@ -102,7 +103,32 @@
       (force-memory 0x1 0x1)
       (force-memory 0x2 0x1234)
       (is (= [0x1234 0x2] (get-address-and-value 0x12))))
-    (testing )))
+    (testing "Pop"
+      (clear-memory)
+      (force-memory 0xFFFE 0x1234)
+      (force-memory :sp 0xFFFE)
+      (is (= [0x1234 0xFFFF] (get-address-and-value 0x18))))
+    (testing "Peek"
+      (clear-memory)
+      (force-memory 0xFFFF 0x1234)
+      (is (= [0x1234 0xFFFF] (get-address-and-value 0x19))))
+    (testing "Push"
+      (clear-memory)
+      (force-memory 0xFFFF 0x1234)
+      (is (= [0x1234 :push] (get-address-and-value 0x1A))))
+    (testing "De-reference next word"
+      (clear-memory)
+      (place-instruction 0 0x1111 0x2222 0x3333)
+      (force-memory 0x2222 0x1234)
+      (is (= [0x1234 0x2222] (get-address-and-value 0x1E))))
+    (testing "Literal next word"
+      (clear-memory)
+      (place-instruction 0 0x1111 0x2222 0x3333)
+      (is (= [0x2222 0x1] (get-address-and-value 0x1F))))
+    (testing "Literal value"
+      (clear-memory)
+      (is (= [0x0 :nil] (get-address-and-value 0x20)))
+      (is (= [0x4 :nil] (get-address-and-value 0x24))))))
 
 (deftest instruction-length
   (testing "Instruction Length"
