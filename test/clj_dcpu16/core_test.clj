@@ -138,3 +138,18 @@
       (is (= 2 (op-size 0x7C10))))
     (testing "Word 0x9037"
       (is (= 1 (op-size 0x9037))))))
+
+;;This is the test program from Notch's README on the DCPU16
+(def test-prog [0x7c01 0x0030 0x7de1 0x1000 0x0020 0x7803 0x1000 0xc00d
+                0x7dc1 0x001a 0xa861 0x7c01 0x2000 0x2161 0x2000 0x8463
+                0x806d 0x7dc1 0x000d 0x9031 0x7c10 0x0018 0x7dc1 0x001a
+                0x9037 0x61c1 0x7dc1 0x001a 0x0000 0x0000 0x0000 0x0000])
+
+(deftest run-a-program
+  (testing "Running Notch's Example Program"
+    (clear-memory)
+    (apply place-instruction 0 test-prog)
+    (while (not= 0x001a (get-memory :pc))
+      (println (format "%x followed to %x" (get-memory :pc) (follow-memory :pc)))
+      (execute (follow-memory :pc)))
+    (is (= 0x40 (get-memory :x)))))

@@ -130,106 +130,123 @@
                              (between % 0x1e 0x1f)) 1 0) params))))
 
 (defmulti execute get-o)
+
+;;Special OP Codes **currently only JMP**
 (defmethod execute 0x0 [word]
-  (if (= 1 (get-b word))
+  (if (= 1 (get-a word))
     (let [[a b out] (process word)]
       (change-memory :push (bit-and 0xFFFF (inc (get-memory :pc))))
-      (change-memory :pc a))))
+      (change-memory :pc b))))
+
+;; SET a to b
 (defmethod execute 0x1 [word]
-  ;; SET a to b
   (let [[a b out] (process word)]
     (change-memory out b)
-    (inc-memory :pc)))
+    (if-not (= out :pc) (inc-memory :pc))))
+
+;; ADD a to b
 (defmethod execute 0x2 [word]
-  ;; ADD a to b
   (let [[a b out] (process word)]
     (if (> 0xFFFF (+ a b))
       (change-memory :o 1)
       (change-memory :o 0))
     (change-memory out (bit-and 0xFFFF (+ a b)))
     (inc-memory :pc)))
+
+;; SUB a from b
 (defmethod execute 0x3 [word]
-  ;; SUB a from b
   (let [[a b out] (process word)]
     (if (pos? (- a b))
       (change-memory :o 0xFFFF)
       (change-memory :o 0))
     (change-memory out (bit-and 0xFFFF (- a b)))
     (inc-memory :pc)))
+
+;; MUL a = a * b
 (defmethod execute 0x4 [word]
-  ;; MUL a = a * b
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (bit-shift-right (* a b) 16)))
     (change-memory out (bit-and 0xFFFF (* a b)))
     (inc-memory :pc)))
+
+;; DIV a = a / b
 (defmethod execute 0x5 [word]
-  ;; DIV a = a / b
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (/ (bit-shift-right a 16) b)))
     (change-memory out (bit-and 0xFFFF (/ a b)))
     (inc-memory :pc)))
+
+;; MOD a = a % b
 (defmethod execute 0x6 [word]
-  ;; MOD a = a % b
   (let [[a b out] (process word)]
     (if (zero? b)
       (change-memory out 0)
       (change-memory out (bit-and 0xFFFF (mod a b))))
     (inc-memory :pc)))
+
+;; SHL a = a << b
 (defmethod execute 0x7 [word]
-  ;; SHL a = a << b
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (bit-shift-right (bit-shift-left a b) 16)))
     (change-memory out (bit-and 0xFFFF (bit-shift-left a b)))
     (inc-memory :pc)))
+
+;; SHR a = a >> b
 (defmethod execute 0x8 [word]
-  ;; SHR a = a >> b
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (bit-shift-right (bit-shift-left a 16) b)))
     (change-memory out (bit-and 0xFFFF (bit-shift-right a b)))
     (inc-memory :pc)))
+
+;; AND a = a & b
 (defmethod execute 0x9 [word]
-  ;; AND a = a & b
   (let [[a b out] (process word)]
     (change-memory out (bit-and a b))
     (inc-memory :pc)))
+
+;; BOR a = a | b
 (defmethod execute 0xa [word]
-  ;; BOR a = a | b
   (let [[a b out] (process word)]
     (change-memory out (bit-or a b))
     (inc-memory :pc)))
+
+;; XOR a = a ^ b
 (defmethod execute 0xb [word]
-  ;; XOR a = a ^ b
   (let [[a b out] (process word)]
     (change-memory out (bit-xor a b))
     (inc-memory :pc)))
+
+;; IFE execute next instruction iff a==b
 (defmethod execute 0xc [word]
-  ;; IFE execute next instruction iff a==b
-  (let [[a b out] (process word)
-        pc (get-memory :pc)]
+  (let [[a b out] (process word)]
     (if (= a b)
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
+      (change-memory :pc (let [pc (get-memory :pc)]
+                           (+ pc 1 (op-size (get-memory (inc pc)))))))))
+
+;; IFN execute next instruction iff a!=b
 (defmethod execute 0xd [word]
-  ;; IFN execute next instruction iff a!=b
-  (let [[a b out] (process word)
-        pc (get-memory :pc)]
+  (let [[a b out] (process word)]
     (if (not= a b)
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
+      (change-memory :pc (let [pc (get-memory :pc)]
+                           (+ pc 1 (op-size (get-memory (inc pc)))))))))
+
+;; IFG execute next instruction iff a>b
 (defmethod execute 0xe [word]
-  ;; IFG execute next instruction iff a>b
-  (let [[a b out] (process word)
-        pc (get-memory :pc)]
+  (let [[a b out] (process word)]
     (if (> a b)
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
+      (change-memory :pc (let [pc (get-memory :pc)]
+                           (+ pc 1 (op-size (get-memory (inc pc)))))))))
+
+;; IFB execute next instruction iff (a&b)!= 0
 (defmethod execute 0xf [word]
-  ;; IFB execute next instruction iff (a&b)!= 0
-  (let [[a b out] (process word)
-        pc (get-memory :pc)]
+  (let [[a b out] (process word)]
     (if (not= 0 (bit-and a b))
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
+      (change-memory :pc (let [pc (get-memory :pc)]
+                           (+ pc 1 (op-size (get-memory (inc pc)))))))))
 
 (defn run!
   "Start execution at 0x0000 unless specified"
