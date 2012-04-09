@@ -15,16 +15,19 @@
    (alter memory f)))
 
 (declare change-memory get-memory follow-memory)
+
 (defn inc-memory
+  "Increment the value at address"
   [address]
   (change-memory address (inc (get-memory address))))
 
 (defn dec-memory
+  "Decrement the value at address"
   [address]
   (change-memory address (dec (get-memory address))))
 
 (defn get-memory
-  "Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
+  "Fetch the provided memory address. Valid addresses are 0x0 to 0xFFFF.
    This function will also fetch registers using keywords
    No check is done to verify the provided address is within the range.
    Assume the default value of memory is 0x0"
@@ -41,6 +44,8 @@
   (comp get-memory get-memory))
 
 (defn change-memory
+  "Change the address to value. Valid addresses are 0x0 to 0xFFFF.
+   Registers can be changed using keywords."
   [address value]
   (let [address (if-not (= address :push)
                   address
@@ -76,6 +81,8 @@
   (and (<= x n) (>= y n)))
 
 (defn get-address-and-value
+  "Given a parameter to an op code, determine the value to use in the calculation and
+   the address to use when writing"
   [param]
   (cond
    ;;register
@@ -132,7 +139,7 @@
 
 (defmulti execute get-o)
 
-;;Special OP Codes **currently only JMP**
+;;Special OP Codes *currently only JMP*
 (defmethod execute 0x0 [word]
   (if (= 1 (get-a word))
     (let [[a b out] (process word)]
