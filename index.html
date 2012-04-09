@@ -3037,19 +3037,17 @@ net.brehaut.ClojureTools = (function (SH) {
                           0x18 :pop, 0x19 :peek, 0x1a :push})</pre></td></tr><tr><td class="docs"><p>Set the memory address with value. Valid addresses are 0x0 to 0x10000.
    As each word is 16 bits, the max value is 0xFFFF. If the provided value
    is greater than 0xFFFF the value saved will be truncated</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- set-memory
+</td><td class="codes"><pre class="brush: clojure">(defn set-memory
   [f]
   (dosync
    (alter memory f)))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn inc-memory
+</td><td class="codes"><pre class="brush: clojure">(declare change-memory get-memory follow-memory)
+(defn inc-memory
   [address]
-  (set-memory inc))</pre></td></tr><tr><td class="docs">
+  (change-memory address (inc (get-memory address))))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn dec-memory
   [address]
-  (set-memory dec))</pre></td></tr><tr><td class="docs"><p>Fetch the value of the memory location which is stored in another memory location</p>
-</td><td class="codes"><pre class="brush: clojure">(declare get-memory)
-(def follow-memory
-  (comp get-memory get-memory))</pre></td></tr><tr><td class="docs"><p>Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
+  (change-memory address (dec (get-memory address))))</pre></td></tr><tr><td class="docs"><p>Fetch the provided memory address. Valid addresses are 0x0 to 0x10000.
    This function will also fetch registers using keywords
    No check is done to verify the provided address is within the range.
    Assume the default value of memory is 0x0</p>
@@ -3060,7 +3058,9 @@ net.brehaut.ClojureTools = (function (SH) {
            (inc-memory :sp)
            v)
     :peek (follow-memory :sp)
-    (get @memory address 0)))</pre></td></tr><tr><td class="docs">
+    (get @memory address 0)))</pre></td></tr><tr><td class="docs"><p>Fetch the value of the memory location which is stored in another memory location</p>
+</td><td class="codes"><pre class="brush: clojure">(def follow-memory
+  (comp get-memory get-memory))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn change-memory
   [address value]
   (let [address (if-not (= address :push)
@@ -3085,7 +3085,7 @@ net.brehaut.ClojureTools = (function (SH) {
 </td><td class="codes"><pre class="brush: clojure">(defn- between
   [n x y]
   (and (&lt;= x n) (&gt;= y n)))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn- get-address-and-value
+</td><td class="codes"><pre class="brush: clojure">(defn get-address-and-value
   [param]
   (cond
    ;;register
@@ -3135,107 +3135,92 @@ net.brehaut.ClojureTools = (function (SH) {
   (let [params [(get-a pc) (get-b pc)]]
     (apply + 1 (map #(if (or (between % 0x10 0x17)
                              (between % 0x1e 0x1f)) 1 0) params))))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defmulti execute get-o)
-(defmethod execute 0x0 [word]
-  (if (= 1 (get-b word))
+</td><td class="codes"><pre class="brush: clojure">(defmulti execute get-o)</pre></td></tr><tr><td class="docs"><p>Special OP Codes <strong>currently only JMP</strong></p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x0 [word]
+  (if (= 1 (get-a word))
     (let [[a b out] (process word)]
       (change-memory :push (bit-and 0xFFFF (inc (get-memory :pc))))
-      (change-memory :pc a))))
-(defmethod execute 0x1 [word]
-  ;; SET a to b
+      (change-memory :pc b))))</pre></td></tr><tr><td class="docs"><p>SET a to b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x1 [word]
   (let [[a b out] (process word)]
     (change-memory out b)
-    (inc-memory :pc)))
-(defmethod execute 0x2 [word]
-  ;; ADD a to b
+    (if-not (= out :pc) (inc-memory :pc))))</pre></td></tr><tr><td class="docs"><p>ADD a to b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x2 [word]
   (let [[a b out] (process word)]
     (if (&gt; 0xFFFF (+ a b))
       (change-memory :o 1)
       (change-memory :o 0))
     (change-memory out (bit-and 0xFFFF (+ a b)))
-    (inc-memory :pc)))
-(defmethod execute 0x3 [word]
-  ;; SUB a from b
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>SUB a from b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x3 [word]
   (let [[a b out] (process word)]
     (if (pos? (- a b))
       (change-memory :o 0xFFFF)
       (change-memory :o 0))
     (change-memory out (bit-and 0xFFFF (- a b)))
-    (inc-memory :pc)))
-(defmethod execute 0x4 [word]
-  ;; MUL a = a * b
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>MUL a = a * b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x4 [word]
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (bit-shift-right (* a b) 16)))
     (change-memory out (bit-and 0xFFFF (* a b)))
-    (inc-memory :pc)))
-(defmethod execute 0x5 [word]
-  ;; DIV a = a / b
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>DIV a = a / b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x5 [word]
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (/ (bit-shift-right a 16) b)))
     (change-memory out (bit-and 0xFFFF (/ a b)))
-    (inc-memory :pc)))
-(defmethod execute 0x6 [word]
-  ;; MOD a = a % b
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>MOD a = a % b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x6 [word]
   (let [[a b out] (process word)]
     (if (zero? b)
       (change-memory out 0)
       (change-memory out (bit-and 0xFFFF (mod a b))))
-    (inc-memory :pc)))
-(defmethod execute 0x7 [word]
-  ;; SHL a = a &lt;&lt; b
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>SHL a = a &lt;&lt; b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x7 [word]
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (bit-shift-right (bit-shift-left a b) 16)))
     (change-memory out (bit-and 0xFFFF (bit-shift-left a b)))
-    (inc-memory :pc)))
-(defmethod execute 0x8 [word]
-  ;; SHR a = a &gt;&gt; b
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>SHR a = a >> b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x8 [word]
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (bit-shift-right (bit-shift-left a 16) b)))
     (change-memory out (bit-and 0xFFFF (bit-shift-right a b)))
-    (inc-memory :pc)))
-(defmethod execute 0x9 [word]
-  ;; AND a = a &amp; b
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>AND a = a &amp; b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0x9 [word]
   (let [[a b out] (process word)]
     (change-memory out (bit-and a b))
-    (inc-memory :pc)))
-(defmethod execute 0xa [word]
-  ;; BOR a = a | b
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>BOR a = a | b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xa [word]
   (let [[a b out] (process word)]
     (change-memory out (bit-or a b))
-    (inc-memory :pc)))
-(defmethod execute 0xb [word]
-  ;; XOR a = a ^ b
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>XOR a = a ^ b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xb [word]
   (let [[a b out] (process word)]
     (change-memory out (bit-xor a b))
-    (inc-memory :pc)))
-(defmethod execute 0xc [word]
-  ;; IFE execute next instruction iff a==b
-  (let [[a b out] (process word)
-        pc (get-memory :pc)]
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>IFE execute next instruction iff a==b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xc [word]
+  (let [[a b out] (process word)]
     (if (= a b)
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
-(defmethod execute 0xd [word]
-  ;; IFN execute next instruction iff a!=b
-  (let [[a b out] (process word)
-        pc (get-memory :pc)]
+      (change-memory :pc (let [pc (get-memory :pc)]
+                           (+ pc 1 (op-size (get-memory (inc pc)))))))))</pre></td></tr><tr><td class="docs"><p>IFN execute next instruction iff a!=b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xd [word]
+  (let [[a b out] (process word)]
     (if (not= a b)
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
-(defmethod execute 0xe [word]
-  ;; IFG execute next instruction iff a&gt;b
-  (let [[a b out] (process word)
-        pc (get-memory :pc)]
+      (change-memory :pc (let [pc (get-memory :pc)]
+                           (+ pc 1 (op-size (get-memory (inc pc)))))))))</pre></td></tr><tr><td class="docs"><p>IFG execute next instruction iff a>b</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xe [word]
+  (let [[a b out] (process word)]
     (if (&gt; a b)
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))
-(defmethod execute 0xf [word]
-  ;; IFB execute next instruction iff (a&amp;b)!= 0
-  (let [[a b out] (process word)
-        pc (get-memory :pc)]
+      (change-memory :pc (let [pc (get-memory :pc)]
+                           (+ pc 1 (op-size (get-memory (inc pc)))))))))</pre></td></tr><tr><td class="docs"><p>IFB execute next instruction iff (a&amp;b)!= 0</p>
+</td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xf [word]
+  (let [[a b out] (process word)]
     (if (not= 0 (bit-and a b))
       (inc-memory :pc)
-      (change-memory :pc (+ pc 1 (op-size (follow-memory (inc pc))))))))</pre></td></tr><tr><td class="docs"><p>Start execution at 0x0000 unless specified</p>
+      (change-memory :pc (let [pc (get-memory :pc)]
+                           (+ pc 1 (op-size (get-memory (inc pc)))))))))</pre></td></tr><tr><td class="docs"><p>Start execution at 0x0000 unless specified</p>
 </td><td class="codes"><pre class="brush: clojure">(defn run!
   ([pc]
      (change-memory :pc pc)
