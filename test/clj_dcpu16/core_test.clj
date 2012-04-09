@@ -2,7 +2,7 @@
   (:use clojure.test
         clj-dcpu16.core))
 
-(defn- clear-memory
+(defn- clear-memory []
   (set-memory (fn [] {:pc 0x0000 :sp 0xFFFF})))
 
 (deftest word-parsing

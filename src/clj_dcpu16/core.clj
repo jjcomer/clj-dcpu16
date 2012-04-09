@@ -5,7 +5,7 @@
                           6 :i, 7 :j, 0x1B :sp, 0x1C :pc, 0x1D :o,
                           0x18 :pop, 0x19 :peek, 0x1a :push})
 
-(defn- set-memory
+(defn set-memory
   "Set the memory address with value. Valid addresses are 0x0 to 0x10000.
    As each word is 16 bits, the max value is 0xFFFF. If the provided value
    is greater than 0xFFFF the value saved will be truncated"
