@@ -262,6 +262,6 @@
      (change-memory :pc pc)
      (run!))
   ([]
-     (change-memory :sp 0xFFFF)
+     (change-memory :sp 0x0000)
      (while true
        (execute (follow-memory :pc)))))

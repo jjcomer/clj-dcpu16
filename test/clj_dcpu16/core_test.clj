@@ -3,7 +3,7 @@
         clj-dcpu16.core))
 
 (defn- clear-memory []
-  (dosync (alter memory (fn [old] {:pc 0x0000 :sp 0xFFFF}))))
+  (dosync (alter memory (fn [old] {:pc 0x0000 :sp 0x0000}))))
 
 (defn- force-memory [address value]
   (dosync (alter memory #(assoc % address value))))
@@ -55,10 +55,10 @@
     (testing "Push"
       (clear-memory)
       (change-memory :push 0x1234)
-      (is (= 0xFFFE (get-memory :sp)))
+      (is (= 0xFFFF (get-memory :sp)))
       (is (= 0x1234 (get-memory :peek)))
       (change-memory :push 0x4321)
-      (is (= 0xFFFD (get-memory :sp)))
+      (is (= 0xFFFE (get-memory :sp)))
       (is (= 0x4321 (get-memory :peek)))))
   (testing "Inc memory"
     (clear-memory)
@@ -111,10 +111,12 @@
     (testing "Peek"
       (clear-memory)
       (force-memory 0xFFFF 0x1234)
+      (force-memory :sp 0xFFFF)
       (is (= [0x1234 0xFFFF] (get-address-and-value 0x19))))
     (testing "Push"
       (clear-memory)
       (force-memory 0xFFFF 0x1234)
+      (force-memory :sp 0xFFFF)
       (is (= [0x1234 :push] (get-address-and-value 0x1A))))
     (testing "De-reference next word"
       (clear-memory)
