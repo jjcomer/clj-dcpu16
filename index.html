@@ -3198,31 +3198,25 @@ net.brehaut.ClojureTools = (function (SH) {
 </td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xb [word]
   (let [[a b out] (process word)]
     (change-memory out (bit-xor a b))
-    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>IFE execute next instruction iff a==b</p>
+    (inc-memory :pc)))</pre></td></tr><tr><td class="docs"><p>If true, execute the next instruction, otherwise skip</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- perform-branch
+  [test]
+  (if test
+    (inc-memory :pc)
+    (change-memory :pc (let [pc (get-memory :pc)]
+                         (+ pc 1 (op-size (get-memory (inc pc))))))))</pre></td></tr><tr><td class="docs"><p>IFE execute next instruction iff a==b</p>
 </td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xc [word]
   (let [[a b out] (process word)]
-    (if (= a b)
-      (inc-memory :pc)
-      (change-memory :pc (let [pc (get-memory :pc)]
-                           (+ pc 1 (op-size (get-memory (inc pc)))))))))</pre></td></tr><tr><td class="docs"><p>IFN execute next instruction iff a!=b</p>
+    (perform-branch (= a b))))</pre></td></tr><tr><td class="docs"><p>IFN execute next instruction iff a!=b</p>
 </td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xd [word]
   (let [[a b out] (process word)]
-    (if (not= a b)
-      (inc-memory :pc)
-      (change-memory :pc (let [pc (get-memory :pc)]
-                           (+ pc 1 (op-size (get-memory (inc pc)))))))))</pre></td></tr><tr><td class="docs"><p>IFG execute next instruction iff a>b</p>
+    (perform-branch (not= a b))))</pre></td></tr><tr><td class="docs"><p>IFG execute next instruction iff a>b</p>
 </td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xe [word]
   (let [[a b out] (process word)]
-    (if (&gt; a b)
-      (inc-memory :pc)
-      (change-memory :pc (let [pc (get-memory :pc)]
-                           (+ pc 1 (op-size (get-memory (inc pc)))))))))</pre></td></tr><tr><td class="docs"><p>IFB execute next instruction iff (a&amp;b)!= 0</p>
+    (perform-branch (&gt; a b))))</pre></td></tr><tr><td class="docs"><p>IFB execute next instruction iff (a&amp;b)!= 0</p>
 </td><td class="codes"><pre class="brush: clojure">(defmethod execute 0xf [word]
   (let [[a b out] (process word)]
-    (if (not= 0 (bit-and a b))
-      (inc-memory :pc)
-      (change-memory :pc (let [pc (get-memory :pc)]
-                           (+ pc 1 (op-size (get-memory (inc pc)))))))))</pre></td></tr><tr><td class="docs"><p>Start execution at 0x0000 unless specified</p>
+    (perform-branch (not= 0 (bit-and a b)))))</pre></td></tr><tr><td class="docs"><p>Start execution at 0x0000 unless specified</p>
 </td><td class="codes"><pre class="brush: clojure">(defn run!
   ([pc]
      (change-memory :pc pc)
