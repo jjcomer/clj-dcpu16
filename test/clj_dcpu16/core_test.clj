@@ -3,10 +3,10 @@
         clj-dcpu16.core))
 
 (defn- clear-memory []
-  (dosync (alter memory (fn [old] {:pc 0x0000 :sp 0x0000}))))
+  (swap! memory (fn [old] {:pc 0x0000 :sp 0x0000})))
 
 (defn- force-memory [address value]
-  (dosync (alter memory #(assoc % address value))))
+  (swap! memory #(assoc % address value)))
 
 (defn- place-instruction
   [address & inst]

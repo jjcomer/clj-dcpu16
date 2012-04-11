@@ -1,7 +1,7 @@
 ;;Find the source on [Github](https://github.com/jjcomer/clj-dcpu16)
 (ns clj-dcpu16.core)
 
-(def memory (ref {}))
+(def memory (atom {}))
 (def register-conversion {0 :a, 1 :b, 2 :c, 3 :x, 4 :y, 5 :z,
                           6 :i, 7 :j, 0x1B :sp, 0x1C :pc, 0x1D :o,
                           0x18 :pop, 0x19 :peek, 0x1a :push})
@@ -11,8 +11,7 @@
    As each word is 16 bits, the max value is 0xFFFF. If the provided value
    is greater than 0xFFFF the value saved will be truncated"
   [f]
-  (dosync
-   (alter memory f)))
+  (swap! memory f))
 
 (declare change-memory get-memory follow-memory)
 
