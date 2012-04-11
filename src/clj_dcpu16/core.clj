@@ -80,46 +80,76 @@
   [n x y]
   (and (<= x n) (>= y n)))
 
+(defn param-reg
+  "register"
+  [param]
+  (let [r (register-conversion param)]
+    [(get-memory r) r]))
+
+(defn param-reg-vec
+  "[register]"
+  [param]
+  (let [r (register-conversion (- param 0x08))
+        a (get-memory r)]
+    [(get-memory a) a]))
+
+(defn param-reg-next-word
+  "[register + next word]"
+  [param]
+  (let [r (register-conversion (- param 0x10))
+        a (get-memory (inc (get-memory :pc)))
+        a (+ (get-memory r) a)]
+    (inc-memory :pc)
+    [(get-memory a) a]))
+
+(defn param-pop "POP / [SP++]" []
+  [(get-memory :pop) (get-memory :sp)])
+
+(defn param-peek "PEEK / [SP]" []
+  [(follow-memory :sp) (get-memory :sp)])
+
+(defn param-push "PUSH / [--SP]" []
+  [(follow-memory :sp) :push])
+
+(defn param-sp "SP" []
+  [(get-memory :sp) :sp])
+
+(defn param-pc "PC" []
+  [(get-memory :pc) :pc])
+
+(defn param-o "O" []
+  [(get-memory :o) :o])
+
+(defn param-next-word "[next word]" []
+  (let [a (get-memory (inc (get-memory :pc)))]
+    (inc-memory :pc)
+    [(get-memory a) a]))
+
+(defn param-next-word-lit "next word (literal)" []
+  (let [a (get-memory (inc (get-memory :pc)))]
+    (inc-memory :pc)
+    [a (get-memory :pc)]))
+
+(defn param-lit "literal value 0x00-0x1F" [param]
+  [(- param 0x20) :nil])
+
 (defn get-address-and-value
-  "Given a parameter to an op code, determine the value to use in the calculation and
-   the address to use when writing"
+  "Given a parameter (p) to an op code, determine the value to use in the
+   calculation and the address to use when writing"
   [param]
   (cond
-   ;;register
-   (between param 0x00 0x07) (let [r (register-conversion param)]
-                               [(get-memory r) r])
-   ;;[register]
-   (between param 0x08 0x0f) (let [r (register-conversion (- param 0x08))
-                                   a (get-memory r)]
-                               [(get-memory a) a])
-   ;;[register + next word]
-   (between param 0x10 0x17) (let [r (register-conversion (- param 0x10))
-                                   a (get-memory (inc (get-memory :pc)))
-                                   a (+ (get-memory r) a)]
-                               (inc-memory :pc)
-                               [(get-memory a) a])
-   ;;POP / [SP++]
-   (= param 0x18) [(get-memory :pop) (get-memory :sp)]
-   ;;PEEK / [SP]
-   (= param 0x19) [(follow-memory :sp) (get-memory :sp)]
-   ;;PUSH / [--SP]
-   (= param 0x1A) [(follow-memory :sp) :push]
-   ;;SP
-   (= param 0x1B) [(get-memory :sp) :sp]
-   ;;PC
-   (= param 0x1C) [(get-memory :pc) :pc]
-   ;;O
-   (= param 0x1D) [(get-memory :o) :o]
-   ;;[next word]
-   (= param 0x1E) (let [a (get-memory (inc (get-memory :pc)))]
-                    (inc-memory :pc)
-                    [(get-memory a) a])
-   ;;next word (literal)
-   (= param 0x1F) (let [a (get-memory (inc (get-memory :pc)))]
-                    (inc-memory :pc)
-                    [a (get-memory :pc)])
-   ;;literal value 0x00-0x1F
-   (between param 0x20 0x3F) [(- param 0x20) :nil]))
+  (between param 0x00 0x07) (param-reg param)
+  (between param 0x08 0x0f) (param-reg-vec param)
+  (between param 0x10 0x17) (param-reg-next-word param)
+  (= param 0x18) (param-pop)
+  (= param 0x19) (param-peek)
+  (= param 0x1A) (param-push)
+  (= param 0x1B) (param-sp)
+  (= param 0x1C) (param-pc)
+  (= param 0x1D) (param-o)
+  (= param 0x1E) (param-next-word)
+  (= param 0x1F) (param-next-word-lit)
+  (between param 0x20 0x3F) (param-lit param)))
 
 (defn process
   "Given a word, fetch the values for a, b, and the location to save the result.
@@ -134,8 +164,9 @@
    next instruction will consume and return the jump distance"
   [pc]
   (let [params [(get-a pc) (get-b pc)]]
-    (apply + 1 (map #(if (or (between % 0x10 0x17)
-                             (between % 0x1e 0x1f)) 1 0) params))))
+    (apply + 1
+           (map #(if (or (between % 0x10 0x17)
+                         (between % 0x1e 0x1f)) 1 0) params))))
 
 (defmulti execute get-o)
 
