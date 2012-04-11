@@ -1,4 +1,4 @@
-;;Find the source on [Github](https://github.com/jjcomer/cljDCPU)
+;;Find the source on [Github](https://github.com/jjcomer/clj-dcpu16)
 (ns clj-dcpu16.core)
 
 (def memory (ref {}))
