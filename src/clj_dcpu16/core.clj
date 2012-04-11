@@ -224,37 +224,33 @@
     (change-memory out (bit-xor a b))
     (inc-memory :pc)))
 
+(defn- perform-branch
+  "If true, execute the next instruction, otherwise skip"
+  [test]
+  (if test
+    (inc-memory :pc)
+    (change-memory :pc (let [pc (get-memory :pc)]
+                         (+ pc 1 (op-size (get-memory (inc pc))))))))
+
 ;; IFE execute next instruction iff a==b
 (defmethod execute 0xc [word]
   (let [[a b out] (process word)]
-    (if (= a b)
-      (inc-memory :pc)
-      (change-memory :pc (let [pc (get-memory :pc)]
-                           (+ pc 1 (op-size (get-memory (inc pc)))))))))
+    (perform-branch (= a b))))
 
 ;; IFN execute next instruction iff a!=b
 (defmethod execute 0xd [word]
   (let [[a b out] (process word)]
-    (if (not= a b)
-      (inc-memory :pc)
-      (change-memory :pc (let [pc (get-memory :pc)]
-                           (+ pc 1 (op-size (get-memory (inc pc)))))))))
+    (perform-branch (not= a b))))
 
 ;; IFG execute next instruction iff a>b
 (defmethod execute 0xe [word]
   (let [[a b out] (process word)]
-    (if (> a b)
-      (inc-memory :pc)
-      (change-memory :pc (let [pc (get-memory :pc)]
-                           (+ pc 1 (op-size (get-memory (inc pc)))))))))
+    (perform-branch (> a b))))
 
 ;; IFB execute next instruction iff (a&b)!= 0
 (defmethod execute 0xf [word]
   (let [[a b out] (process word)]
-    (if (not= 0 (bit-and a b))
-      (inc-memory :pc)
-      (change-memory :pc (let [pc (get-memory :pc)]
-                           (+ pc 1 (op-size (get-memory (inc pc)))))))))
+    (perform-branch (not= 0 (bit-and a b)))))
 
 (defn run!
   "Start execution at 0x0000 unless specified"
