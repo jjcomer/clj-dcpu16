@@ -80,46 +80,76 @@
   [n x y]
   (and (<= x n) (>= y n)))
 
+(defn param-reg
+  "register"
+  [param]
+  (let [r (register-conversion param)]
+    [(get-memory r) r]))
+
+(defn param-reg-vec
+  "[register]"
+  [param]
+  (let [r (register-conversion (- param 0x08))
+        a (get-memory r)]
+    [(get-memory a) a]))
+
+(defn param-reg-next-word
+  "[register + next word]"
+  [param]
+  (let [r (register-conversion (- param 0x10))
+        a (get-memory (inc (get-memory :pc)))
+        a (+ (get-memory r) a)]
+    (inc-memory :pc)
+    [(get-memory a) a]))
+
+(defn param-pop "POP / [SP++]" []
+  [(get-memory :pop) (get-memory :sp)])
+
+(defn param-peek "PEEK / [SP]" []
+  [(follow-memory :sp) (get-memory :sp)])
+
+(defn param-push "PUSH / [--SP]" []
+  [(follow-memory :sp) :push])
+
+(defn param-sp "SP" []
+  [(get-memory :sp) :sp])
+
+(defn param-pc "PC" []
+  [(get-memory :pc) :pc])
+
+(defn param-o "O" []
+  [(get-memory :o) :o])
+
+(defn param-next-word "[next word]" []
+  (let [a (get-memory (inc (get-memory :pc)))]
+    (inc-memory :pc)
+    [(get-memory a) a]))
+
+(defn param-next-word-lit "next word (literal)" []
+  (let [a (get-memory (inc (get-memory :pc)))]
+    (inc-memory :pc)
+    [a (get-memory :pc)]))
+
+(defn param-lit "literal value 0x00-0x1F" [param]
+  [(- param 0x20) :nil])
+
 (defn get-address-and-value
-  "Given a parameter to an op code, determine the value to use in the calculation and
-   the address to use when writing"
+  "Given a parameter (p) to an op code, determine the value to use in the
+   calculation and the address to use when writing"
   [param]
   (cond
-   ;;register
-   (between param 0x00 0x07) (let [r (register-conversion param)]
-                               [(get-memory r) r])
-   ;;[register]
-   (between param 0x08 0x0f) (let [r (register-conversion (- param 0x08))
-                                   a (get-memory r)]
-                               [(get-memory a) a])
-   ;;[register + next word]
-   (between param 0x10 0x17) (let [r (register-conversion (- param 0x10))
-                                   a (get-memory (inc (get-memory :pc)))
-                                   a (+ (get-memory r) a)]
-                               (inc-memory :pc)
-                               [(get-memory a) a])
-   ;;POP / [SP++]
-   (= param 0x18) [(get-memory :pop) (get-memory :sp)]
-   ;;PEEK / [SP]
-   (= param 0x19) [(follow-memory :sp) (get-memory :sp)]
-   ;;PUSH / [--SP]
-   (= param 0x1A) [(follow-memory :sp) :push]
-   ;;SP
-   (= param 0x1B) [(get-memory :sp) :sp]
-   ;;PC
-   (= param 0x1C) [(get-memory :pc) :pc]
-   ;;O
-   (= param 0x1D) [(get-memory :o) :o]
-   ;;[next word]
-   (= param 0x1E) (let [a (get-memory (inc (get-memory :pc)))]
-                    (inc-memory :pc)
-                    [(get-memory a) a])
-   ;;next word (literal)
-   (= param 0x1F) (let [a (get-memory (inc (get-memory :pc)))]
-                    (inc-memory :pc)
-                    [a (get-memory :pc)])
-   ;;literal value 0x00-0x1F
-   (between param 0x20 0x3F) [(- param 0x20) :nil]))
+  (between param 0x00 0x07) (param-reg param)
+  (between param 0x08 0x0f) (param-reg-vec param)
+  (between param 0x10 0x17) (param-reg-next-word param)
+  (= param 0x18) (param-pop)
+  (= param 0x19) (param-peek)
+  (= param 0x1A) (param-push)
+  (= param 0x1B) (param-sp)
+  (= param 0x1C) (param-pc)
+  (= param 0x1D) (param-o)
+  (= param 0x1E) (param-next-word)
+  (= param 0x1F) (param-next-word-lit)
+  (between param 0x20 0x3F) (param-lit param)))
 
 (defn process
   "Given a word, fetch the values for a, b, and the location to save the result.
@@ -134,26 +164,27 @@
    next instruction will consume and return the jump distance"
   [pc]
   (let [params [(get-a pc) (get-b pc)]]
-    (apply + 1 (map #(if (or (between % 0x10 0x17)
-                             (between % 0x1e 0x1f)) 1 0) params))))
+    (apply + 1
+           (map #(if (or (between % 0x10 0x17)
+                         (between % 0x1e 0x1f)) 1 0) params))))
 
 (defmulti execute get-o)
 
-;;Special OP Codes *currently only JMP*
 (defmethod execute 0x0 [word]
+  "Special OP codes *currently only JMP*"
   (if (= 1 (get-a word))
     (let [[a b out] (process word)]
       (change-memory :push (bit-and 0xFFFF (inc (get-memory :pc))))
       (change-memory :pc b))))
 
-;; SET a to b
 (defmethod execute 0x1 [word]
+  "SET a to b"
   (let [[a b out] (process word)]
     (change-memory out b)
     (if-not (= out :pc) (inc-memory :pc))))
 
-;; ADD a to b
 (defmethod execute 0x2 [word]
+  "ADD a to b"
   (let [[a b out] (process word)]
     (if (> 0xFFFF (+ a b))
       (change-memory :o 1)
@@ -161,8 +192,8 @@
     (change-memory out (bit-and 0xFFFF (+ a b)))
     (inc-memory :pc)))
 
-;; SUB a from b
 (defmethod execute 0x3 [word]
+  "SUB a from b"
   (let [[a b out] (process word)]
     (if (pos? (- a b))
       (change-memory :o 0xFFFF)
@@ -170,56 +201,56 @@
     (change-memory out (bit-and 0xFFFF (- a b)))
     (inc-memory :pc)))
 
-;; MUL a = a * b
 (defmethod execute 0x4 [word]
+  "MUL a = a * b"
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (bit-shift-right (* a b) 16)))
     (change-memory out (bit-and 0xFFFF (* a b)))
     (inc-memory :pc)))
 
-;; DIV a = a / b
 (defmethod execute 0x5 [word]
+  "DIV a = a / b"
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (/ (bit-shift-right a 16) b)))
     (change-memory out (bit-and 0xFFFF (/ a b)))
     (inc-memory :pc)))
 
-;; MOD a = a % b
 (defmethod execute 0x6 [word]
+  "MOD a = a % b"
   (let [[a b out] (process word)]
     (if (zero? b)
       (change-memory out 0)
       (change-memory out (bit-and 0xFFFF (mod a b))))
     (inc-memory :pc)))
 
-;; SHL a = a << b
 (defmethod execute 0x7 [word]
+  "SHL a = a << b"
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (bit-shift-right (bit-shift-left a b) 16)))
     (change-memory out (bit-and 0xFFFF (bit-shift-left a b)))
     (inc-memory :pc)))
 
-;; SHR a = a >> b
 (defmethod execute 0x8 [word]
+  "SHR a = a >> b"
   (let [[a b out] (process word)]
     (change-memory :o (bit-and 0xFFFF (bit-shift-right (bit-shift-left a 16) b)))
     (change-memory out (bit-and 0xFFFF (bit-shift-right a b)))
     (inc-memory :pc)))
 
-;; AND a = a & b
 (defmethod execute 0x9 [word]
+  "AND a = a & b"
   (let [[a b out] (process word)]
     (change-memory out (bit-and a b))
     (inc-memory :pc)))
 
-;; BOR a = a | b
 (defmethod execute 0xa [word]
+  "BOR a = a | b"
   (let [[a b out] (process word)]
     (change-memory out (bit-or a b))
     (inc-memory :pc)))
 
-;; XOR a = a ^ b
 (defmethod execute 0xb [word]
+  "XOR a = a ^ b"
   (let [[a b out] (process word)]
     (change-memory out (bit-xor a b))
     (inc-memory :pc)))
@@ -232,23 +263,23 @@
     (change-memory :pc (let [pc (get-memory :pc)]
                          (+ pc 1 (op-size (get-memory (inc pc))))))))
 
-;; IFE execute next instruction iff a==b
 (defmethod execute 0xc [word]
+  "IFE execute next instruction iff a==b"
   (let [[a b out] (process word)]
     (perform-branch (= a b))))
 
-;; IFN execute next instruction iff a!=b
 (defmethod execute 0xd [word]
+  "IFN execute next instruct iff a!=b"
   (let [[a b out] (process word)]
     (perform-branch (not= a b))))
 
-;; IFG execute next instruction iff a>b
 (defmethod execute 0xe [word]
+  "IFG execute next instruction iff a>b"
   (let [[a b out] (process word)]
     (perform-branch (> a b))))
 
-;; IFB execute next instruction iff (a&b)!= 0
 (defmethod execute 0xf [word]
+  "IFB execute next instruction iff (a&b)!=0"
   (let [[a b out] (process word)]
     (perform-branch (not= 0 (bit-and a b)))))
 
